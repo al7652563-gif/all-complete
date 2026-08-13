@@ -7,7 +7,7 @@
 <meta name="description" content="Compare accredited universities, online MBA programs, student loans, scholarships, and financial aid options for colleges across the United States.">
 <meta name="keywords" content="online MBA, accredited university, student loans, scholarships, financial aid, tuition assistance, online degree programs, college finance">
 
-<link rel="preload" as="image" href="https://pub-5f52dd93f3804fbcb113f853eb38a385.r2.dev/USA/update-image.jpeg" fetchpriority="high">
+<link rel="preload" as="image" href="https://pub-5f52dd93f3804fbcb113f853eb38a385.r2.dev/YOUR-THUMBNAIL-FILE.jpg" fetchpriority="high">
 
 <script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js" crossorigin="anonymous"></script>
 <script>window.googletag = window.googletag || {cmd: []};</script>
@@ -689,7 +689,7 @@
   <div class="video-meta-avatar">NP</div>
   <div class="video-meta-body">
     <div class="video-meta-title">USA 🇺🇸 EXCLUSIVE || Leaked  footage of an OnlyFans star</div>
-    <div class="video-meta-sub">OnlyFans Leak · 974K views · 1 month ago</div>
+    <div class="video-meta-sub">OnlyFans Leak · 974K views ·  1 month ago</div>
   </div>
   <div class="video-meta-dots">⋮</div>
 </div>
@@ -716,7 +716,7 @@
   </div>
 </div>
 
-<div class="version-tag">build v51 (video + all ads)</div>
+<div class="version-tag">build v52 (video + all ads)</div>
 
 <!-- rewarded ad modal -->
 <div id="rewardModal" class="hidden">
@@ -730,8 +730,8 @@
   var GA4_ID = "G-G176TZC8TC";
   var TOTAL_STEPS = 4;
   var EXIT_URL = "https://www.google.com";
-  var LOADING_DURATION_MS = 1500;
-  var THUMBNAIL_DELAY_MS = 1500;
+  var LOADING_DURATION_MS = 2100;
+  var THUMBNAIL_DELAY_MS = 800;
 
   var stepNames = ["Age Verification", "Country Verification", "Human Verification", "Terms Agreement"];
   var stepPaths = ["/age-verification", "/country-verification", "/human-verification", "/terms-agreement"];
@@ -786,41 +786,32 @@
   // Rewarded ad — shows once the last popup closes, before the video reveals.
   // Skips itself if a rewarded ad was already shown to this visitor in the
   // last 10 minutes, or if the ad fails to load — either way, calls onDone().
-  function triggerRewardedAd(onDone) {
-    var done = false;
-    function finish() {
-      if (done) { return; }
-      done = true;
-      onDone();
-    }
+  var rewardedAdReady = false;
+  var rewardedAdRequested = false;
+  var rewardedAdEvent = null;
+  var rewardedAdEmpty = false;
+
+  function preloadRewardedAd() {
+    if (rewardedAdRequested) { return; }
+    rewardedAdRequested = true;
 
     var last = localStorage.getItem("hasShownRewardedAd");
     var now = Date.now();
     if (last && (now - parseInt(last, 10) <= 6e5)) {
-      // shown recently — skip the ad, just hold the thumbnail briefly
-      setTimeout(finish, 1500);
+      // shown recently — don't bother loading one
       return;
     }
-
-    // Safety net: if the ad never becomes ready (network issue, no fill,
-    // slow connection), don't leave the visitor stuck — reveal the video.
-    var safetyTimer = setTimeout(finish, 15000);
 
     googletag.cmd.push(function () {
       var adSlotRewarded = googletag
         .defineOutOfPageSlot("/23313830399/reward", googletag.enums.OutOfPageFormat.REWARDED)
         .addService(googletag.pubads());
 
-      if (!adSlotRewarded) {
-        clearTimeout(safetyTimer);
-        finish();
-        return;
-      }
+      if (!adSlotRewarded) { return; }
 
       adSlotRewarded.setForceSafeFrame(true);
       googletag.pubads().enableAsyncRendering();
 
-      var modal = document.getElementById("rewardModal");
       var closeButton = document.querySelector("#rewardModal .btn");
 
       window.addEventListener("popstate", function () {
@@ -835,38 +826,86 @@
 
       googletag.pubads().addEventListener("slotRenderEnded", function (event) {
         if (event.isEmpty) {
-          // no ad filled — skip straight to the video
-          clearTimeout(safetyTimer);
-          modal.classList.remove("block");
-          modal.classList.add("hidden");
-          finish();
+          rewardedAdEmpty = true;
         }
       });
 
       googletag.pubads().addEventListener("rewardedSlotReady", function (event) {
-        clearTimeout(safetyTimer);
-        modal.classList.remove("hidden");
-        modal.classList.add("block");
-        try { history.pushState(null, null, location.href); } catch (e) {}
-        event.makeRewardedVisible();
+        rewardedAdReady = true;
+        rewardedAdEvent = event;
       });
 
       googletag.pubads().addEventListener("rewardedSlotClosed", function () {
+        var modal = document.getElementById("rewardModal");
         modal.classList.remove("block");
         modal.classList.add("hidden");
-        localStorage.setItem("hasShownRewardedAd", now.toString());
-        finish();
+        localStorage.setItem("hasShownRewardedAd", Date.now().toString());
+        if (window._rewardedAdFinish) { window._rewardedAdFinish(); }
       });
 
       closeButton.onclick = function () {
+        var modal = document.getElementById("rewardModal");
         modal.classList.remove("block");
         modal.classList.add("hidden");
-        localStorage.setItem("hasShownRewardedAd", now.toString());
-        finish();
+        localStorage.setItem("hasShownRewardedAd", Date.now().toString());
+        if (window._rewardedAdFinish) { window._rewardedAdFinish(); }
       };
 
       googletag.display(adSlotRewarded);
     });
+  }
+
+  function triggerRewardedAd(onDone) {
+    var done = false;
+    function finish() {
+      if (done) { return; }
+      done = true;
+      window._rewardedAdFinish = null;
+      onDone();
+    }
+    window._rewardedAdFinish = finish;
+
+    var last = localStorage.getItem("hasShownRewardedAd");
+    var now = Date.now();
+    if (last && (now - parseInt(last, 10) <= 6e5)) {
+      finish();
+      return;
+    }
+
+    if (rewardedAdEmpty) {
+      // already know it came back empty — skip straight to the video
+      finish();
+      return;
+    }
+
+    if (rewardedAdReady && rewardedAdEvent) {
+      // it finished loading while they were going through the popups —
+      // show it instantly, no extra wait
+      var modal = document.getElementById("rewardModal");
+      modal.classList.remove("hidden");
+      modal.classList.add("block");
+      try { history.pushState(null, null, location.href); } catch (e) {}
+      rewardedAdEvent.makeRewardedVisible();
+      return;
+    }
+
+    // still loading — give it a short grace window, then continue anyway
+    var safetyTimer = setTimeout(finish, 5000);
+    var checkInterval = setInterval(function () {
+      if (rewardedAdEmpty) {
+        clearInterval(checkInterval);
+        clearTimeout(safetyTimer);
+        finish();
+      } else if (rewardedAdReady && rewardedAdEvent) {
+        clearInterval(checkInterval);
+        clearTimeout(safetyTimer);
+        var modal = document.getElementById("rewardModal");
+        modal.classList.remove("hidden");
+        modal.classList.add("block");
+        try { history.pushState(null, null, location.href); } catch (e) {}
+        rewardedAdEvent.makeRewardedVisible();
+      }
+    }, 150);
   }
 
   function showStep(n) {
@@ -956,6 +995,7 @@
   }
 
   window.trackStep(stepPaths[0], stepNames[0]);
+  preloadRewardedAd();
 </script>
 
 </body>
